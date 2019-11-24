@@ -84,27 +84,27 @@ class Record:
         return output
 
     def generate(self, data):
+        output = ""
+
         #Check that there are field.
         if self.fields == {}:
             raise ValueError("Fields must be set to generate record.")
         
-        #Acceptable data types: dictionary, pandas. 
+        #Acceptable data types: dictionary. 
         if isinstance(data, dict):
             #Loop through each of the items in fields and get value.
-            for pos in self.fields.keys():
+            for pos, values in self.fields.items():
                 #check if value is in dict.
                 if data[self.fields[pos].get("name")] == None:
                     raise ValueError("Field name #{key} not in data dict.")
 
-                #Add value to fields: value. 
-                self.fields[pos]["value"] = data[self.fields[pos].get("name")]
-        elif isinstance(data, pd.DataFrame):
-            #Loop through each of the columns. 
-            for column in data.columns:
-                pass
+                
 
+                #Add value to output. 
+                output += data[self.fields[pos].get("name")]
         else:
-            raise ValueError()
+            raise ValueError("Data of type #{type} is not supported. Dictionary required.".format(type=str(type(data))))
+        
 
 test = "101 234567890 1234567891310081642C094101ImmDestName            ImmOriginName                  "
 
