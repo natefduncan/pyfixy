@@ -1,5 +1,6 @@
 import re
 from utils import is_number
+import pandas as pd
 
 class Record:
 
@@ -10,15 +11,6 @@ class Record:
             raise ValueError("Record length #{record_length} is not a number.".format(record_length=str(record_length)))
         else:
             self.record_length = record_length
-
-    @property
-    def record_length(self):
-        return self._record_length
-
-    @record_length.setter
-    def record_length(self, value):
-
-        self._record_length = value
 
     #Create a field in the record. 
     def field(self, name, size, rng, typ):
@@ -91,9 +83,28 @@ class Record:
         
         return output
 
-    def generate(self):
+    def generate(self, data):
         #Check that there are field.
-        pass
+        if self.fields == {}:
+            raise ValueError("Fields must be set to generate record.")
+        
+        #Acceptable data types: dictionary, pandas. 
+        if isinstance(data, dict):
+            #Loop through each of the items in fields and get value.
+            for pos in self.fields.keys():
+                #check if value is in dict.
+                if data[self.fields[pos].get("name")] == None:
+                    raise ValueError("Field name #{key} not in data dict.")
+
+                #Add value to fields: value. 
+                self.fields[pos]["value"] = data[self.fields[pos].get("name")]
+        elif isinstance(data, pd.DataFrame):
+            #Loop through each of the columns. 
+            for column in data.columns:
+                pass
+
+        else:
+            raise ValueError()
 
 test = "101 234567890 1234567891310081642C094101ImmDestName            ImmOriginName                  "
 
