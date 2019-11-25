@@ -1,6 +1,6 @@
 import re
 from utils import is_number
-import pandas as pd
+from formats import ALPHABETIC, ALPHANUMERIC, NUMERIC
 
 class Record:
 
@@ -13,7 +13,7 @@ class Record:
             self.record_length = record_length
 
     #Create a field in the record. 
-    def field(self, name, size, rng, typ):
+    def field(self, name, size, rng, typ, justify=None, fill=None):
         #Check if name is an 'identifier'.
         if not name.isidentifier():
             raise ValueError("Name #{name} is not a valid identifier.".format(name=name))
@@ -23,7 +23,7 @@ class Record:
             raise ValueError("Size #{size} is not a number.".format(size=size))
 
         #Check if range is valid. 
-        if not bool(re.match("^(\d+)(?:-(\d+))?$", rng)):
+        if not bool(re.match(r"^(\d+)(?:-(\d+))?$", rng)):
             raise ValueError("Range '#{range}' is invalid".format(range=rng))
 
         #Get to, from, and check with size. 
@@ -49,7 +49,9 @@ class Record:
             "from" : int(range_from), 
             "to" : int(range_to), 
             "size" : size,
-            "type" : typ
+            "type" : typ, 
+            "justify" : justify, 
+            "fill" : fill
         }
 
     #Parse an existing record. 
@@ -76,10 +78,9 @@ class Record:
             name  =  self.fields[pos[i]].get("name")
             from_ = self.fields[pos[i]].get("from") - 1
             to_ = self.fields[pos[i]].get("to")
-            typ = self.fields[pos[i]].get("type")
 
             #Add parsed value to output
-            output[name] = record[from_:to_]
+            output[name] = str(record[from_:to_]).strip()
         
         return output
 
@@ -93,41 +94,57 @@ class Record:
         #Acceptable data types: dictionary. 
         if isinstance(data, dict):
             #Loop through each of the items in fields and get value.
-            for pos, values in self.fields.items():
-                #check if value is in dict.
-                if data[self.fields[pos].get("name")] == None:
+            for values in self.fields.values():
+
+                #Get name, size, justify, and fill
+                name = values.get("name")
+                size = values.get("size")
+                typ = values.get("type")
+
+                #Get data value. 
+                data_value = data.get(name)
+
+                #Check if name is in data. 
+                if data_value == None:
                     raise ValueError("Field name #{key} not in data dict.")
 
+                #Make data_value string.
+                data_value = str(data_value)
+
+                #Compare length of value to size. 
+                if len(str(data_value)) > size:
+                    raise ValueError("Size of data value #{data_value} > size #{size}.".format(data_value=data_value, size=size))
+
+                #Check if value matches regex format. 
+                if not bool(re.match(typ["regex"], data_value)):
+                    raise ValueError("Data value #{data_value} is not {form}".format(data_value=data_value, form=typ["name"]))
+                    
+                #Filler - Check for override. 
+                if values.get("fill") == None:
+                    filler = str(typ["fill"]) * (size - len(data_value))
+                else:
+                    filler = str(values.get("fill") * (size - len(data_value)))
                 
+                #Justify - Check for override. 
+                if values.get("justify") == None:
+                    justify = typ["justify"]
+                else:
+                    justify = values.get("justify")
+
+                #Check that it's valid. 
+                if justify == "left":
+                    data_value = data_value + filler
+                elif justify == "right":
+                    data_value = filler + data_value
+                else:
+                    raise ValueError("Justification #{justify} is not right or left.".format(justify=typ["justify"]))
 
                 #Add value to output. 
-                output += data[self.fields[pos].get("name")]
+                output += data_value
         else:
             raise ValueError("Data of type #{type} is not supported. Dictionary required.".format(type=str(type(data))))
-        
 
-test = "101 234567890 1234567891310081642C094101ImmDestName            ImmOriginName                  "
-
-#Initialize record. 
-file_header = Record(94)
-
-#name, size, rng, typ
-file_header.field("record_type_code", 1, "1-1", "numeric")
-file_header.field("priority_code", 2, "2-3", "numeric")
-file_header.field("immediate_destination", 10, "4-13", "numeric")
-file_header.field("immediate_origin", 10, "14-23", "numeric")
-file_header.field("file_creation_date", 6, "24-29", "numeric")
-file_header.field("file_creation_time", 4, "30-33", "numeric")
-file_header.field("file_id_modifier", 1, "34-34", "numeric")
-file_header.field("record_size", 3, "35-37", "numeric")
-file_header.field("blocking_factor", 2, "38-39", "numeric")
-file_header.field("format_code", 1, "40-40", "numeric")
-file_header.field("immediate_destination_name", 23, "41-63", "numeric")
-file_header.field("immediate_origin_name", 23, "64-86", "numeric")
-file_header.field("reference_code", 8, "87-94", "numeric")
-
-print(file_header.parse(test))
-
+        return output
 
 
 
